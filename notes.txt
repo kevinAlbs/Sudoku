@@ -1,0 +1,2 @@
+compile with -g
+Valgrind leak-check=full

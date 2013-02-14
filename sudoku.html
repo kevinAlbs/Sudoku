@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<style>
+#container{
+	width: 600px;
+margin: 100px auto;
+}
+#sudoku{
+width: 100%
+}
+#sudoku div{
+width: 11%;
+height: 11%;
+display: inline-block;
+outline: 1px black solid;
+}
+</style>
+<script src="js/jquery.js"></script>
+
+</head>
+<body>
+<div id="container">
+	<div id="sudoku">
+	</div>
+</div>
+<script>
+$(document).ready(function(){
+	var SUDOKU = (function(){
+			var that = {};
+			function initUI(c){
+				var frag = document.createDocumentFragment();
+				for(var i = 1; i <= 9; i++){
+					for(var j = 1; j <= 9; j++){
+						//create body in jquery
+						var box = $("<div>").attr("data-x", i).attr("data-y", j)[0];
+						frag.appendChild(box);	
+					}
+				}
+
+			}
+			that.init = function(stg){
+				if(stg.hasOwnProperty("container")){
+					initUI(stg.container);
+				}
+			}
+			return that;
+	}());
+	SUDOKU.init({container: document.getElementById("sudoku")}); 
+});
+</script>
+</body>
+
+</html>
