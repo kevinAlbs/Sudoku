@@ -81,6 +81,34 @@ $(document).ready(function(){
 			function showFeedback(type, msg){
 				console.log(type, msg);
 			}
+			function navigateFocus(dir){
+				//get the current x-y coordinates that the user is in
+				var parent = $(curTextBox).parent();
+				var curx = parent.attr("data-x"),
+					cury = parent.attr("data-y");
+				switch(dir){
+					case 37:
+						curx--;
+					break;
+					case 38:
+						cury--;
+					break;
+					case 39:
+						curx++;
+					break;
+					case 40:
+						cury++;
+					break;
+					default:
+						return;//nope
+					break;
+				}
+				if(curx < 1 || curx > 9 || cury < 1 || cury > 9){
+					return;//invalid
+				}
+				//otherwise focus on the new one
+				$("div[data-x=" + curx + "][data-y=" + cury + "] input").focus();
+			}
 			function solve(){
 				//recursively solve this
 				
@@ -114,7 +142,7 @@ $(document).ready(function(){
 				for(var i = 1; i <= 9; i++){
 					for(var j = 1; j <= 9; j++){
 						//create body in jquery
-						var box = $("<div>").addClass("box").attr("data-x", i).attr("data-y", j)[0],
+						var box = $("<div>").addClass("box").attr("data-x", j).attr("data-y", i)[0],
 							text = $("<input>").attr("type", "text").attr("maxlength", "1").on("focus", textBoxFocus).on("blur", textBoxBlur)[0];
 						boxStorage.push({box: box, val: 0});
 						box.appendChild(text);
@@ -127,15 +155,19 @@ $(document).ready(function(){
 					if(targ.hasClass("box")){
 						targ.find("input").focus();
 					}
-				}).on("keypress", function(e){
-					console.log(e.charCode);
+				}).on("keydown", function(e){
+					console.log(e.which);
 					if(curTextBox != null){
 						//ok then user might be trying to input a number
 						//check if key is legit
-						var character = String.fromCharCode(e.charCode);
+						var character = String.fromCharCode(e.which);
 						if(isNaN(character) || character == "0"){
 							e.preventDefault();
 							e.stopPropagation();
+							//check if arrow key
+							if(e.which >= 37 || e.which <= 40){
+								navigateFocus(e.which);
+							}
 							return false;
 						}
 						else{
