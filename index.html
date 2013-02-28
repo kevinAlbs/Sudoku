@@ -5,19 +5,28 @@
 <style>
 *{padding: 0px; margin: 0px;}
 #container{
-width: 350px;
+width: 360px;
 margin: 100px auto;
 }
 #sudoku{
-width: 350px;
-height: 350px;
+width: 360px;
+height: 360px;
 }
 #sudoku div{
-width: 11%;
-height: 11%;
+width: 39px;
+height: 39px;
 display: inline-block;
-outline: 1px black solid;
+border-top: 1px black solid;
+border-left: 1px black solid;
 text-align: center;
+}
+#sudoku div:nth-child(3n + 3){
+	border-right: 1px black solid;
+	width: 38px;
+}
+#sudoku div[data-y="2"], #sudoku div[data-y="5"], #sudoku div[data-y="8"]{
+	border-bottom: 1px black solid;
+	height: 38px;
 }
 #sudoku div input{
 	width: 100%;
@@ -51,13 +60,16 @@ button{
 $(document).ready(function(){
 	var SUDOKU = (function(){
 			var that = {};
-			var curTextBox = null;//holds the current textbox the user is focused on, this is the DOM node, not the jQuery object
+			var curBox = null;//holds the current box object the user is focused on
+			var invalidTextBox = null; //holds the current textbox with an invalid value (if there is any)
 			var solveIncrementally = false;
 			var checkbox, button;
 			var boxStorage = new Array(81);/*array of boxes, defined as follows:
 				{
 					val: <number>
-					box: <textbox>
+					textbox: <textbox>
+					x: <number>
+					y: <number>
 				}
 			*/
 			function get(x,y){
@@ -66,16 +78,36 @@ $(document).ready(function(){
 			function set(x,y,val){
 				boxStorage[y * 9 + x].val = val;
 			}
+			function getBox(x,y){
+				x = parseInt(x);
+				y = parseInt(y);
+				//console.log(y * 9 + x);
+				//console.log(boxStorage[y * 9 + x]);
+				//console.log(boxStorage);
+				return boxStorage[y * 9 + x];
+			}
+			/* sets both the internal value and the textbox value
+				therefore the user can see the changes
+			*/
+			function setBox(x,y,val){
+				$(boxStorage[y * 9 + x]).val(val);
+				set(x,y,val);
+			}
 			function textBoxFocus(e){
 				var targ = $(e.target);
+				var parent = targ.parent();
 				if(isNaN(targ.val()) || targ.val() == "0"){
 					targ.val("");//clear it
 				}
-				curTextBox = e.target;
+
+				curBox = getBox(parent.attr("data-x"), parent.attr("data-y"));
 			}
 			function textBoxBlur(e){
-				if(curTextBox == e.target){
-					curTextBox = null;
+				//check if the box blurred is the current box
+				if(curBox != null && curBox.textbox == e.target){
+					//validate
+					validate(curBox)
+					curBox = null;
 				}
 			}
 			function showFeedback(type, msg){
@@ -83,9 +115,8 @@ $(document).ready(function(){
 			}
 			function navigateFocus(dir){
 				//get the current x-y coordinates that the user is in
-				var parent = $(curTextBox).parent();
-				var curx = parent.attr("data-x"),
-					cury = parent.attr("data-y");
+				var curx = curBox.x,
+					cury = curBox.y; 
 				switch(dir){
 					case 37:
 						curx--;
@@ -103,29 +134,45 @@ $(document).ready(function(){
 						return;//nope
 					break;
 				}
-				if(curx < 1 || curx > 9 || cury < 1 || cury > 9){
+				if(curx < 0 || curx > 8 || cury < 0 || cury > 8){
 					return;//invalid
 				}
 				//otherwise focus on the new one
-				$("div[data-x=" + curx + "][data-y=" + cury + "] input").focus();
+				console.log(curx,cury);
+				$(getBox(curx, cury).textbox).focus();
 			}
 			function solve(){
 				//recursively solve this
 				
 			}
 
-			function isValid(){
-
+			function isValid(box){
+					return false;
 			}
-
-			function validate(){
-				//go through each box, set up each box in the array, set the vals
-				for(var i = 0; i < 81; i++){
-					var val = boxStorage[i].box.val();
-					if(isNaN(val) || val == "0"){
-						console.log("Invalid");
-						return false;
+			/* if called with x,y parameters, the box at x,y is validated
+				otherwise all boxes are validated
+			*/
+			function validate(x,y){
+				if(x != null && y != null){
+					//just validate one box
+					if(!isValid(boxStorage[i])){
+						invalidTextBox = boxStorage[i].textbox;
 					}
+				}
+				else{
+					//go through each box, set up each box in the array, set the vals
+					for(var i = 0; i < 81; i++){
+						var val = $(boxStorage[i].textbox).val();
+						if(!isValid(boxStorage[i])){
+							console.log("Invalid");
+							invalidTextBox = boxStorage[i].textbox;
+							break;
+						}
+					}
+				}
+				if(invalidTextBox != null){
+					$(invalidTextBox).addClass("error");
+					return false;
 				}
 			}
 
@@ -139,12 +186,12 @@ $(document).ready(function(){
 
 			function initUI(c){
 				var frag = document.createDocumentFragment();
-				for(var i = 1; i <= 9; i++){
-					for(var j = 1; j <= 9; j++){
+				for(var i = 0; i < 9; i++){
+					for(var j = 0; j < 9; j++){
 						//create body in jquery
 						var box = $("<div>").addClass("box").attr("data-x", j).attr("data-y", i)[0],
 							text = $("<input>").attr("type", "text").attr("maxlength", "1").on("focus", textBoxFocus).on("blur", textBoxBlur)[0];
-						boxStorage.push({box: box, val: 0});
+						boxStorage[i * 9 + j] = {textbox: text, val: 0, x: j, y: i};
 						box.appendChild(text);
 						frag.appendChild(box);
 					}
@@ -156,23 +203,30 @@ $(document).ready(function(){
 						targ.find("input").focus();
 					}
 				}).on("keydown", function(e){
-					console.log(e.which);
-					if(curTextBox != null){
+					if(curBox != null){
+						console.log(e.which);
 						//ok then user might be trying to input a number
 						//check if key is legit
 						var character = String.fromCharCode(e.which);
-						if(isNaN(character) || character == "0"){
+						if(e.which >= 49 && e.which <= 57){
+							//valid numeric 1-9
+							$(curBox.textbox).val(character);
+						}
+						else{
 							e.preventDefault();
 							e.stopPropagation();
 							//check if arrow key
-							if(e.which >= 37 || e.which <= 40){
+							if(e.which >= 37 && e.which <= 40){
 								navigateFocus(e.which);
+							}
+							else if(e.which == 8 || e.which == 46){
+								console.log("Hey");
+								//delete/backspace
+								$(curBox.textbox).val("");
 							}
 							return false;
 						}
-						else{
-							$(curTextBox).val(character);
-						}
+
 					}
 				});
 			}
