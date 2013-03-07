@@ -35,6 +35,9 @@ text-align: center;
 	font-size: 20px;
 	text-align: center;
 }
+#sudoku div input.error{
+	background-color: #FF9494;
+}
 #sudoku div input:focus{
 	background-color: #D6E1FF;
 }
@@ -64,12 +67,14 @@ $(document).ready(function(){
 			var invalidTextBox = null; //holds the current textbox with an invalid value (if there is any)
 			var solveIncrementally = false;
 			var checkbox, button;
+			var errorBox // holds the box with the error
 			var boxStorage = new Array(81);/*array of boxes, defined as follows:
 				{
 					val: <number>
 					textbox: <textbox>
 					x: <number>
 					y: <number>
+					userentered: <number>
 				}
 			*/
 			function get(x,y){
@@ -96,17 +101,19 @@ $(document).ready(function(){
 			function textBoxFocus(e){
 				var targ = $(e.target);
 				var parent = targ.parent();
-				if(isNaN(targ.val()) || targ.val() == "0"){
-					targ.val("");//clear it
-				}
+
 
 				curBox = getBox(parent.attr("data-x"), parent.attr("data-y"));
+				if(isNaN(targ.val()) || targ.val() == "0"){
+					targ.val("");//clear it
+					curBox.val = null;
+				}
 			}
 			function textBoxBlur(e){
 				//check if the box blurred is the current box
 				if(curBox != null && curBox.textbox == e.target){
 					//validate
-					validate(curBox)
+					validate(curBox.x, curBox.y);
 					curBox = null;
 				}
 			}
@@ -138,7 +145,6 @@ $(document).ready(function(){
 					return;//invalid
 				}
 				//otherwise focus on the new one
-				console.log(curx,cury);
 				$(getBox(curx, cury).textbox).focus();
 			}
 			function solve(){
@@ -146,33 +152,108 @@ $(document).ready(function(){
 				
 			}
 
+			function isValidNum(n){
+				n = parseInt(n);
+				return n > 0 && n <= 9;
+			}
+			/*
+			 box is the box object
+			 returns boolean
+			 */
 			function isValid(box){
-					return false;
+				//check if the box value is valid
+				var bVal = box.val; 
+				if(isValidNum(bVal)){
+					box.val = bVal;
+				}
+				else if(bVal == null){
+					return true;
+				}
+				console.log(bVal);
+				// check all other numbers in this row and
+				// check all other numbers in this column 
+				for(var i = 0; i < 9; i++){
+					var rowVal = getBox(i,box.y).val,
+					colVal = getBox(box.x, i).val;
+					if(rowVal && rowVal == box.val && i != box.x){
+						return false;
+					}
+					if(colVal && colVal == box.val && i != box.y){
+						return false;
+					}
+				}
+
+				// check all other things in this 3x3 box 
+				var xTridant = Math.ceil((box.x + 1) / 3) - 1, // gets 0, 1, or 2
+				yTridant = Math.ceil((box.y + 1) / 3) - 1,
+				xOff = xTridant * 3,
+				yOff = yTridant * 3;
+
+				for(var i = xOff; i < xOff + 3; i++){
+					for(var j = yOff; j < yOff + 3; j++){
+						if(getBox(i, j).val == box.val && !(i == box.x && j == box.y)){
+							return false;
+						}
+					}
+				}
+				console.log(xTridant, yTridant);	
+
+				return true;
 			}
 			/* if called with x,y parameters, the box at x,y is validated
 				otherwise all boxes are validated
 			*/
 			function validate(x,y){
+
 				if(x != null && y != null){
 					//just validate one box
-					if(!isValid(boxStorage[i])){
-						invalidTextBox = boxStorage[i].textbox;
+
+					var box = getBox(x,y);
+					if(errorBox != null && box != errorBox){
+						/* no point to check if there is already error */
+						return false;	
+					}
+					else if(!isValid(box)){
+						/*
+						 * only go add an error to this box if other errors do not exist already
+						 * mainly because there is no point in showing more than one real time error
+						 * because many errors can be caused by one bad number
+						 */
+						errorBox = box;
+					}
+					else{
+						//the errorbox has been fixed
+						$(box.textbox).removeClass("error");
+						errorBox = null;
+						return validate();
+						return true;
 					}
 				}
 				else{
-					//go through each box, set up each box in the array, set the vals
+					/*go through each box and check
+					ignore errorBox just in case program thinks there is an error
+					when there really isn't
+					*/
+
+					errorBox = null;//set to null initially
 					for(var i = 0; i < 81; i++){
 						var val = $(boxStorage[i].textbox).val();
 						if(!isValid(boxStorage[i])){
-							console.log("Invalid");
-							invalidTextBox = boxStorage[i].textbox;
+							errorBox = boxStorage[i];
 							break;
+						}
+						else{
+							$(boxStorage[i].textbox).removeClass("error");	
 						}
 					}
 				}
-				if(invalidTextBox != null){
-					$(invalidTextBox).addClass("error");
+
+				if(errorBox != null){
+					$(errorBox.textbox).addClass("error");
 					return false;
+				}
+				else{
+					return true;	
 				}
 			}
 
@@ -191,7 +272,7 @@ $(document).ready(function(){
 						//create body in jquery
 						var box = $("<div>").addClass("box").attr("data-x", j).attr("data-y", i)[0],
 							text = $("<input>").attr("type", "text").attr("maxlength", "1").on("focus", textBoxFocus).on("blur", textBoxBlur)[0];
-						boxStorage[i * 9 + j] = {textbox: text, val: 0, x: j, y: i};
+						boxStorage[i * 9 + j] = {textbox: text, val: null, x: j, y: i};
 						box.appendChild(text);
 						frag.appendChild(box);
 					}
@@ -204,13 +285,15 @@ $(document).ready(function(){
 					}
 				}).on("keydown", function(e){
 					if(curBox != null){
-						console.log(e.which);
+					//	console.log(e.which);
 						//ok then user might be trying to input a number
 						//check if key is legit
 						var character = String.fromCharCode(e.which);
-						if(e.which >= 49 && e.which <= 57){
+						if(isValidNum(character)){
 							//valid numeric 1-9
 							$(curBox.textbox).val(character);
+							curBox.userentered = true;
+							curBox.val = parseInt(character);
 						}
 						else{
 							e.preventDefault();
@@ -220,9 +303,10 @@ $(document).ready(function(){
 								navigateFocus(e.which);
 							}
 							else if(e.which == 8 || e.which == 46){
-								console.log("Hey");
 								//delete/backspace
 								$(curBox.textbox).val("");
+								curBox.val = null;
+								curBox.userentered = false;
 							}
 							return false;
 						}
