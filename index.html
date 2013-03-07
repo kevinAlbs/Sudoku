@@ -35,17 +35,21 @@ text-align: center;
 	font-size: 20px;
 	text-align: center;
 }
+#sudoku div input.userentered{
+	background-color: #D7FFC9;
+}
 #sudoku div input.error{
 	background-color: #FF9494;
 }
 #sudoku div input:focus{
 	background-color: #D6E1FF;
 }
-button{
+#solve{
 	border: 1px black solid;
 	background: #FFF;
 	padding: 5px;
 	cursor: pointer;
+	margin: 10px 0;
 }
 </style>
 <script src="js/jquery.js"></script>
@@ -55,7 +59,7 @@ button{
 <div id="container">
 	<div id="sudoku">
 	</div>
-	<button id="solve">Solve!</button><br/>
+	<button id="solve">Solve</button><br/>
 	<input type="checkbox" id="show"/><label for="show">Show how it's done (shows each step)</label>
 	
 </div>
@@ -68,6 +72,7 @@ $(document).ready(function(){
 			var solveIncrementally = false;
 			var checkbox, button;
 			var errorBox // holds the box with the error
+			var solving = false; /* locks the solving function */
 			var boxStorage = new Array(81);/*array of boxes, defined as follows:
 				{
 					val: <number>
@@ -90,6 +95,25 @@ $(document).ready(function(){
 				//console.log(boxStorage[y * 9 + x]);
 				//console.log(boxStorage);
 				return boxStorage[y * 9 + x];
+			}
+			/* gets the next sequential box */
+			function getNextBox(box){
+				var x = box.x;
+				var y = box.y;
+				if(x == 8){
+					x = 0;
+					y++;
+				}
+				else{
+					x++;
+				}
+
+				if(y > 8){
+					return null;
+				}
+				else{
+					return getBox(x,y);
+				}
 			}
 			/* sets both the internal value and the textbox value
 				therefore the user can see the changes
@@ -147,11 +171,50 @@ $(document).ready(function(){
 				//otherwise focus on the new one
 				$(getBox(curx, cury).textbox).focus();
 			}
+			/* called by pressing the solve button */
 			function solve(){
-				//recursively solve this
-				
+				if(solving){return false;}
+				solving = true;
+				//validate
+				if(!validate()){
+					return;
+				}
+				else{
+					//recursively solve this
+					recursiveSolve(getBox(0,0));
+				}
+				solving = false;
 			}
 
+			function recursiveSolve(curBox){
+				if(curBox == null){
+					return true;//finished
+				}console.log("here1");
+				//check if it is userentered, because user entered boxes are uneditable
+				if(!curBox.userentered){
+					console.log("here");
+					//set it until it is valid
+					for(var i = 1; i <= 9; i++){
+						curBox.val = i;
+						$(curBox.textbox).val("" + i); //debugging
+						if(!isValid(curBox)){
+							continue;
+						}
+						if(recursiveSolve(getNextBox(curBox))){
+							//this value works!
+							return true;
+						}
+					}
+					//no values work, must backtrack
+					curBox.val = null;
+					$(curBox.textbox).val(""); //debugging
+					return false;
+				}
+				else{
+					//skip to the next one
+					return recursiveSolve(getNextBox(curBox));
+				}
+			}
 			function isValidNum(n){
 				n = parseInt(n);
 				return n > 0 && n <= 9;
@@ -201,7 +264,8 @@ $(document).ready(function(){
 				return true;
 			}
 			/* if called with x,y parameters, the box at x,y is validated
-				otherwise all boxes are validated
+				otherwise all boxes are validated,
+				gives feedback on errors
 			*/
 			function validate(x,y){
 
@@ -266,6 +330,7 @@ $(document).ready(function(){
 			}
 
 			function initUI(c){
+				//create all boxes, and set up click events
 				var frag = document.createDocumentFragment();
 				for(var i = 0; i < 9; i++){
 					for(var j = 0; j < 9; j++){
@@ -293,6 +358,7 @@ $(document).ready(function(){
 							//valid numeric 1-9
 							$(curBox.textbox).val(character);
 							curBox.userentered = true;
+							$(curBox.textbox).addClass("userentered");
 							curBox.val = parseInt(character);
 						}
 						else{
@@ -305,6 +371,7 @@ $(document).ready(function(){
 							else if(e.which == 8 || e.which == 46){
 								//delete/backspace
 								$(curBox.textbox).val("");
+								$(curBox.textbox).removeClass("userentered");
 								curBox.val = null;
 								curBox.userentered = false;
 							}
@@ -313,6 +380,8 @@ $(document).ready(function(){
 
 					}
 				});
+				//set up click event for solve button
+				$("#solve").click(solve);
 			}
 			that.init = function(stg){
 				if(stg.hasOwnProperty("container")){
