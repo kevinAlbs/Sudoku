@@ -2,11 +2,14 @@
 
 <html>
 <head>
+	<link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
 <style>
 *{padding: 0px; margin: 0px;}
 #container{
 width: 360px;
 margin: 100px auto;
+position: relative;
+font-family: 'Roboto';
 }
 #sudoku{
 width: 360px;
@@ -45,367 +48,48 @@ text-align: center;
 	background-color: #D6E1FF;
 }
 #solve{
-	border: 1px black solid;
-	background: #FFF;
-	padding: 5px;
+	position: absolute;
+	right: 0px;
+	border-radius: 3px;
+	border: 1px #8CCAF5 solid;
+	background-color: #9ED8FF;
+	padding: 8px 12px;
+	font-size: 18px;
+	color: #061E2E;
 	cursor: pointer;
 	margin: 10px 0;
+	-webkit-transition: background-color .15s linear;
+	-moz-transition: background-color .15s linear;
+	-o-transition: background-color .15s linear;
+	-ms-transition: background-color .15s linear;
+	transition: background-color .15s linear;
+}
+#solve:hover{
+	background-color: #D1EDFF;
 }
 </style>
 <script src="js/jquery.js"></script>
 
 </head>
 <body>
+	<!--
+	TODO:
+	-add clear button
+	-add settings button
+	-if solve is pressed again, clear the unedited boxes
+-->
 <div id="container">
 	<div id="sudoku">
 	</div>
 	<button id="solve">Solve</button><br/>
-	<input type="checkbox" id="show"/><label for="show">Show how it's done (shows each step)</label>
-	
+	<input type="checkbox" id="show"/><label for="show"> Turn off animation</label>
+	<footer id="pageFooter">
+		<small>Developed by <a href="http://kevinalbs.com" target="_blank">Kevin Albertson</a></small><br/>
+		<small>View the source on <a href="https://github.com/kevinAlbs/Sudoku" target="_blank">Github</a></small>
+	</footer>
 </div>
-<script>
-$(document).ready(function(){
-	var SUDOKU = (function(){
-			var that = {};
-			var curBox = null;//holds the current box object the user is focused on
-			var invalidTextBox = null; //holds the current textbox with an invalid value (if there is any)
-			var solveIncrementally = false;
-			var checkbox, button;
-			var errorBox // holds the box with the error
-			var solving = false; /* locks the solving function */
-			var boxStorage = new Array(81);/*array of boxes, defined as follows:
-				{
-					val: <number>
-					textbox: <textbox>
-					x: <number>
-					y: <number>
-					userentered: <number>
-				}
-			*/
-			function get(x,y){
-				return boxStorage[y * 9 + x].val;
-			}
-			function set(x,y,val){
-				boxStorage[y * 9 + x].val = val;
-			}
-			function getBox(x,y){
-				x = parseInt(x);
-				y = parseInt(y);
-				//console.log(y * 9 + x);
-				//console.log(boxStorage[y * 9 + x]);
-				//console.log(boxStorage);
-				return boxStorage[y * 9 + x];
-			}
-			/* gets the next sequential box */
-			function getNextBox(box){
-				var x = box.x;
-				var y = box.y;
-				if(x == 8){
-					x = 0;
-					y++;
-				}
-				else{
-					x++;
-				}
 
-				if(y > 8){
-					return null;
-				}
-				else{
-					return getBox(x,y);
-				}
-			}
-			/* sets both the internal value and the textbox value
-				therefore the user can see the changes
-			*/
-			function setBox(x,y,val){
-				$(boxStorage[y * 9 + x]).val(val);
-				set(x,y,val);
-			}
-			function textBoxFocus(e){
-				var targ = $(e.target);
-				var parent = targ.parent();
-
-
-				curBox = getBox(parent.attr("data-x"), parent.attr("data-y"));
-				if(isNaN(targ.val()) || targ.val() == "0"){
-					targ.val("");//clear it
-					curBox.val = null;
-				}
-			}
-			function textBoxBlur(e){
-				//check if the box blurred is the current box
-				if(curBox != null && curBox.textbox == e.target){
-					//validate
-					validate(curBox.x, curBox.y);
-					curBox = null;
-				}
-			}
-			function showFeedback(type, msg){
-				console.log(type, msg);
-			}
-			function navigateFocus(dir){
-				//get the current x-y coordinates that the user is in
-				var curx = curBox.x,
-					cury = curBox.y; 
-				switch(dir){
-					case 37:
-						curx--;
-					break;
-					case 38:
-						cury--;
-					break;
-					case 39:
-						curx++;
-					break;
-					case 40:
-						cury++;
-					break;
-					default:
-						return;//nope
-					break;
-				}
-				if(curx < 0 || curx > 8 || cury < 0 || cury > 8){
-					return;//invalid
-				}
-				//otherwise focus on the new one
-				$(getBox(curx, cury).textbox).focus();
-			}
-			/* called by pressing the solve button */
-			function solve(){
-				if(solving){return false;}
-				solving = true;
-				//validate
-				if(!validate()){
-					return;
-				}
-				else{
-					//recursively solve this
-					recursiveSolve(getBox(0,0));
-				}
-				solving = false;
-			}
-
-			function recursiveSolve(curBox){
-				if(curBox == null){
-					return true;//finished
-				}console.log("here1");
-				//check if it is userentered, because user entered boxes are uneditable
-				if(!curBox.userentered){
-					console.log("here");
-					//set it until it is valid
-					for(var i = 1; i <= 9; i++){
-						curBox.val = i;
-						$(curBox.textbox).val("" + i); //debugging
-						if(!isValid(curBox)){
-							continue;
-						}
-						if(recursiveSolve(getNextBox(curBox))){
-							//this value works!
-							return true;
-						}
-					}
-					//no values work, must backtrack
-					curBox.val = null;
-					$(curBox.textbox).val(""); //debugging
-					return false;
-				}
-				else{
-					//skip to the next one
-					return recursiveSolve(getNextBox(curBox));
-				}
-			}
-			function isValidNum(n){
-				n = parseInt(n);
-				return n > 0 && n <= 9;
-			}
-			/*
-			 box is the box object
-			 returns boolean
-			 */
-			function isValid(box){
-				//check if the box value is valid
-				var bVal = box.val; 
-				if(isValidNum(bVal)){
-					box.val = bVal;
-				}
-				else if(bVal == null){
-					return true;
-				}
-				console.log(bVal);
-				// check all other numbers in this row and
-				// check all other numbers in this column 
-				for(var i = 0; i < 9; i++){
-					var rowVal = getBox(i,box.y).val,
-					colVal = getBox(box.x, i).val;
-					if(rowVal && rowVal == box.val && i != box.x){
-						return false;
-					}
-					if(colVal && colVal == box.val && i != box.y){
-						return false;
-					}
-				}
-
-				// check all other things in this 3x3 box 
-				var xTridant = Math.ceil((box.x + 1) / 3) - 1, // gets 0, 1, or 2
-				yTridant = Math.ceil((box.y + 1) / 3) - 1,
-				xOff = xTridant * 3,
-				yOff = yTridant * 3;
-
-				for(var i = xOff; i < xOff + 3; i++){
-					for(var j = yOff; j < yOff + 3; j++){
-						if(getBox(i, j).val == box.val && !(i == box.x && j == box.y)){
-							return false;
-						}
-					}
-				}
-				console.log(xTridant, yTridant);	
-
-				return true;
-			}
-			/* if called with x,y parameters, the box at x,y is validated
-				otherwise all boxes are validated,
-				gives feedback on errors
-			*/
-			function validate(x,y){
-
-				if(x != null && y != null){
-					//just validate one box
-
-					var box = getBox(x,y);
-					if(errorBox != null && box != errorBox){
-						/* no point to check if there is already error */
-						return false;	
-					}
-					else if(!isValid(box)){
-						/*
-						 * only go add an error to this box if other errors do not exist already
-						 * mainly because there is no point in showing more than one real time error
-						 * because many errors can be caused by one bad number
-						 */
-						errorBox = box;
-					}
-					else{
-						//the errorbox has been fixed
-						$(box.textbox).removeClass("error");
-						errorBox = null;
-						return validate();
-						return true;
-					}
-				}
-				else{
-					/*go through each box and check
-					ignore errorBox just in case program thinks there is an error
-					when there really isn't
-					*/
-
-					errorBox = null;//set to null initially
-					for(var i = 0; i < 81; i++){
-						var val = $(boxStorage[i].textbox).val();
-						if(!isValid(boxStorage[i])){
-							errorBox = boxStorage[i];
-							break;
-						}
-						else{
-							$(boxStorage[i].textbox).removeClass("error");	
-						}
-					}
-				}
-
-				if(errorBox != null){
-					$(errorBox.textbox).addClass("error");
-					return false;
-				}
-				else{
-					return true;	
-				}
-			}
-
-			function buttonClicked(){
-				$(button).hide();	
-				if(validate()){
-					solve();
-				}
-				$(button).show();
-			}
-
-			function initUI(c){
-				//create all boxes, and set up click events
-				var frag = document.createDocumentFragment();
-				for(var i = 0; i < 9; i++){
-					for(var j = 0; j < 9; j++){
-						//create body in jquery
-						var box = $("<div>").addClass("box").attr("data-x", j).attr("data-y", i)[0],
-							text = $("<input>").attr("type", "text").attr("maxlength", "1").on("focus", textBoxFocus).on("blur", textBoxBlur)[0];
-						boxStorage[i * 9 + j] = {textbox: text, val: null, x: j, y: i};
-						box.appendChild(text);
-						frag.appendChild(box);
-					}
-				}
-				c.appendChild(frag);
-				$(c).on("click", function(e){
-					var targ = $(e.target);
-					if(targ.hasClass("box")){
-						targ.find("input").focus();
-					}
-				}).on("keydown", function(e){
-					if(curBox != null){
-					//	console.log(e.which);
-						//ok then user might be trying to input a number
-						//check if key is legit
-						var character = String.fromCharCode(e.which);
-						if(isValidNum(character)){
-							//valid numeric 1-9
-							$(curBox.textbox).val(character);
-							curBox.userentered = true;
-							$(curBox.textbox).addClass("userentered");
-							curBox.val = parseInt(character);
-						}
-						else{
-							e.preventDefault();
-							e.stopPropagation();
-							//check if arrow key
-							if(e.which >= 37 && e.which <= 40){
-								navigateFocus(e.which);
-							}
-							else if(e.which == 8 || e.which == 46){
-								//delete/backspace
-								$(curBox.textbox).val("");
-								$(curBox.textbox).removeClass("userentered");
-								curBox.val = null;
-								curBox.userentered = false;
-							}
-							return false;
-						}
-
-					}
-				});
-				//set up click event for solve button
-				$("#solve").click(solve);
-			}
-			that.init = function(stg){
-				if(stg.hasOwnProperty("container")){
-					initUI(stg.container);
-				}
-				if(stg.hasOwnProperty("button")){
-					$(stg.button).on("click", buttonClicked);
-					button = stg.button;
-				}
-				if(stg.hasOwnProperty("checkbox")){
-					checkbox = stg.checkbox;
-				}
-			}
-			return that;
-	}());
-	SUDOKU.init(
-		{
-			container: document.getElementById("sudoku"),
-			button: document.getElementById("solve"),
-			checkbox: document.getElementById("show")
-		}
-	); 
-});
-</script>
+<script src="js/script.js"></script>
 </body>
 
 </html>
