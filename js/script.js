@@ -42,6 +42,10 @@ $(document).ready(function(){
 			return rear != null;
 		};
 
+		that.clear = function(){
+			rear = null;
+		};
+
 		return that;
 	};
 	var SUDOKU = (function(){
@@ -49,7 +53,7 @@ $(document).ready(function(){
 			var curBox = null;//holds the current box object the user is focused on
 			var invalidTextBox = null; //holds the current textbox with an invalid value (if there is any)
 			var solveIncrementally = false;
-			var checkbox, button;
+			var ui; //contains all ui elements
 			var errorBox // holds the box with the error
 			var solving = false; /* locks the solving function */
 			var stepQueue = null; /* queue of steps used for animations */
@@ -101,6 +105,21 @@ $(document).ready(function(){
 			function setBox(x,y,val){
 				$(boxStorage[y * 9 + x]).val(val);
 				set(x,y,val);
+			}
+			//wipes all boxes
+			function clear(){
+				if(isLocked()){
+					//make animation stop
+					stepQueue.clear(); //removes rest of steps to animate
+					lock(false);
+					return;
+				}
+				errorBox = null;
+				for(var i = 0; i < boxStorage.length; i++){
+					$(boxStorage[i].textbox).removeClass().val("");
+					boxStorage[i].val = null;
+					boxStorage[i].userentered = false;
+				}
 			}
 			function textBoxFocus(e){
 				var targ = $(e.target);
@@ -155,10 +174,14 @@ $(document).ready(function(){
 			function lock(val){
 				solving = val;
 
-				if(val)
-					$(button).fadeOut();
-				else
-					$(button).fadeIn();
+				if(val){
+					$(ui.btnSolve).fadeOut();
+					$(ui.btnClear).html("Stop");
+				}
+				else{
+					$(ui.btnSolve).fadeIn();
+					$(ui.btnClear).html("Clear");
+				}
 			}
 			function isLocked(){
 				return solving;
@@ -174,9 +197,9 @@ $(document).ready(function(){
 				if(isLocked()){return false;}
 				lock(true);	
 
-				var stepQueue = null;
+				stepQueue = null;
 				//check if user wants animation
-				if(!$(checkbox).is(":checked")){
+				if(!$(ui.checkbox).is(":checked")){
 					stepQueue = new Queue();
 				}
 
@@ -216,7 +239,7 @@ $(document).ready(function(){
 				else{
 					$(step.box.textbox).val("");
 				}
-				setTimeout(function(){showStep(stepQueue);}, 100);
+				setTimeout(function(){showStep(stepQueue);}, 50);
 			}
 
 			function recursiveSolve(curBox, stepQueue){
@@ -357,7 +380,8 @@ $(document).ready(function(){
 				}
 			}
 
-			function initUI(c){
+			function initUI(){
+				var c = ui.container; //shorter variable name
 				//create all boxes, and set up click events
 				var frag = document.createDocumentFragment();
 				for(var i = 0; i < 9; i++){
@@ -377,6 +401,12 @@ $(document).ready(function(){
 						targ.find("input").focus();
 					}
 				}).on("keydown", function(e){
+					if(isLocked()){
+						//ignore any keypresses when locked
+						e.preventDefault();
+						e.stopPropagation();
+						return false;	
+					}
 					if(curBox != null){
 					//	console.log(e.which);
 						//ok then user might be trying to input a number
@@ -408,27 +438,33 @@ $(document).ready(function(){
 
 					}
 				});
-				
+				//set up click event for solve button
+				$(ui.btnSolve).click(solve);
+				$(ui.btnClear).click(clear);
+				$(ui.btnSettings).click(function(){$(ui.popupSettings).toggle();});				
 			}
 			that.init = function(stg){
-				if(stg.hasOwnProperty("container")){
-					initUI(stg.container);
+				var requiredProps = ["container", "btnSolve", "btnClear", "btnSettings", "checkbox", "popupSettings"];
+				ui = stg;
+				//validate that all required properties are here
+				for(var i = 0; i < requiredProps.length; i++){
+					if(!ui.hasOwnProperty(requiredProps[i])){
+						alert("Missing property: " + requiredProps[i]);
+						return;
+					}
 				}
-				if(stg.hasOwnProperty("button")){
-					button = stg.button;
-					//set up click event for solve button
-					$(button).click(solve);
-				}
-				if(stg.hasOwnProperty("checkbox")){
-					checkbox = stg.checkbox;
-				}
+				//all properties accounted for
+				initUI();
 			}
 			return that;
 	}());
 	SUDOKU.init(
 		{
 			container: document.getElementById("sudoku"),
-			button: document.getElementById("solve"),
+			btnSolve: document.getElementById("solve"),
+			btnClear: document.getElementById("clear"),
+			btnSettings: document.getElementById("settings"),
+			popupSettings: document.getElementById("settings_popup"),
 			checkbox: document.getElementById("show")
 		}
 	); 
