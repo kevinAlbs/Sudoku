@@ -57,6 +57,7 @@ $(document).ready(function(){
 			var errorBox // holds the box with the error
 			var solving = false; /* locks the solving function */
 			var stepQueue = null; /* queue of steps used for animations */
+			var feedbackTimer = null;
 			var boxStorage = new Array(81);/*array of boxes, defined as follows:
 				{
 					val: <number>
@@ -66,6 +67,45 @@ $(document).ready(function(){
 					userentered: <number>
 				}
 			*/
+			function parseLink(){
+				//link query has following syntax
+				//<url>?<x-coord><y-coord><val><x-coord><y-coord><val>...
+				var invalidSyntax = "The link to this page does not have correct syntax";
+				//user passed in coordinates
+				var coords = window.location.search.substring(1);
+				if(coords.length % 3 != 0){
+					showFeedback(invalidSyntax, 'e');
+				}
+				for(var i = 0; i < coords.length; i+=3){
+					//update box, check validity
+					var x = coords.charAt(i);
+					var y = coords.charAt(i+1);
+					var val = coords.charAt(i+2);
+					if(isNaN(x) || isNaN(y) || isNaN(val)){
+						showFeedback(invalidSyntax, 'e');	
+						break;
+					}
+					var box = getBox(x, y);
+					box.val = val;
+					$(box.textbox).val(val);
+
+					if(!isValid(box)){
+						showFeedback(invalidSyntax, 'e');
+						break;
+					}
+				}
+			}
+			function createLink(){
+				var link = $(ui.link);
+				var str = link.attr("data-website") + "?";
+				//go through boxes
+				for(var i = 0; i < boxStorage.length; i++){
+					if(boxStorage[i].val != null){
+						str += boxStorage[i].x + boxStorage[i].y + boxStorage[i].val;
+					}
+				}
+				link.val(str);
+			}
 			function get(x,y){
 				return boxStorage[y * 9 + x].val;
 			}
@@ -139,9 +179,12 @@ $(document).ready(function(){
 					validate(curBox.x, curBox.y);
 					curBox = null;
 				}
+				createLink();
 			}
-			function showFeedback(type, msg){
-				console.log(type, msg);
+			function showFeedback(msg, type){
+				feedbackTimer = window.clearTimeout(feedbackTimer);
+				$(ui.feedback).html(msg).removeClass().addClass(type).fadeIn();
+				feedbackTimer = window.setTimeout(function(){$(ui.feedback).fadeOut();}, 7500);
 			}
 			function navigateFocus(dir){
 				//get the current x-y coordinates that the user is in
@@ -199,7 +242,7 @@ $(document).ready(function(){
 
 				stepQueue = null;
 				//check if user wants animation
-				if(!$(ui.checkbox).is(":checked")){
+				if($(ui.checkbox).is(":checked")){
 					stepQueue = new Queue();
 				}
 
@@ -395,6 +438,10 @@ $(document).ready(function(){
 					}
 				}
 				c.appendChild(frag);
+				//check if there are values in the link
+				if(window.location.search){
+					parseLink();
+				}
 				$(c).on("click", function(e){
 					var targ = $(e.target);
 					if(targ.hasClass("box")){
@@ -444,7 +491,7 @@ $(document).ready(function(){
 				$(ui.btnSettings).click(function(){$(ui.popupSettings).toggle();});				
 			}
 			that.init = function(stg){
-				var requiredProps = ["container", "btnSolve", "btnClear", "btnSettings", "checkbox", "popupSettings"];
+				var requiredProps = ["container", "btnSolve", "btnClear", "btnSettings", "checkbox", "popupSettings", "feedback", "link"];
 				ui = stg;
 				//validate that all required properties are here
 				for(var i = 0; i < requiredProps.length; i++){
@@ -461,6 +508,8 @@ $(document).ready(function(){
 	SUDOKU.init(
 		{
 			container: document.getElementById("sudoku"),
+			feedback: document.getElementById("feedback"),
+			link: document.getElementById("link"),
 			btnSolve: document.getElementById("solve"),
 			btnClear: document.getElementById("clear"),
 			btnSettings: document.getElementById("settings"),

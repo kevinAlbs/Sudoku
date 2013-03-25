@@ -93,17 +93,37 @@ footer{
 	left: 0px;
 	border: 1px #BBB solid;
 	width: 200px;
-	height: 50px;
+	
 	padding: 10px 20px;
 	display: none;	
 	border-radius: 3px;
 	background: #FFF;
 	z-index: 1;
 }
+#settings_popup input[type=text]{
+	border: 1px black solid;
+	border-radius: 3px;
+	padding: 3px;
+	font-size: 12px;
+	width: 100%;
+}
 #settings_popup label{
 	font-size: 12px;
 	position: relative;
 	bottom: 2px;
+}
+#feedback{
+	border: 2px #CCC solid;
+	background: #EEE;
+	margin-bottom: 10px;
+	border-radius: 3px;
+	padding: 5px;
+	font-size: 12px;
+	display: none;
+}
+#feedback.e{
+	background-color: #FF9E9E;
+	border-color: #F58C8C;
 }
 </style>
 <script src="js/jquery.js"></script>
@@ -117,6 +137,7 @@ footer{
 	-if solve is pressed again, clear the unedited boxes
 -->
 <div id="container">
+	<p id="feedback"></p>
 	<div id="sudoku">
 	</div>
 	<button id="solve">Solve</button>
@@ -125,7 +146,10 @@ footer{
 		<input type="image" id="settings" src="img/settings.png" alt="Settings" title="Settings"/>
 		<div id="settings_popup">
 			<p>Settings:</p>
-			<input type="checkbox" id="show"/><label for="show"> Turn off animation</label>
+			<input type="checkbox" id="show"/><label for="show"> Show recursion</label>
+			<br/>
+			<p>Link to this puzzle:</p>
+			<input type="text" id="link" data-website="http://www.eden.rutgers.edu/~ka324/sudoku/" value="http://www.eden.rutgers.edu/~ka324/sudoku/"/>
 		</div><!-- settings_popup -->
 	</div><!-- settings_container -->
 
