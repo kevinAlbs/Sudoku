@@ -87,21 +87,28 @@ $(document).ready(function(){
 					}
 					var box = getBox(x, y);
 					box.val = val;
+					box.userentered = true;
 					$(box.textbox).val(val);
 
 					if(!isValid(box)){
 						showFeedback(invalidSyntax, 'e');
+						$(box.textbox).addClass("error");
 						break;
 					}
+					else{
+						$(box.textbox).addClass("userentered")
+					}
 				}
+				createLink();
 			}
 			function createLink(){
 				var link = $(ui.link);
 				var str = link.attr("data-website") + "?";
 				//go through boxes
 				for(var i = 0; i < boxStorage.length; i++){
-					if(boxStorage[i].val != null){
-						str += boxStorage[i].x + boxStorage[i].y + boxStorage[i].val;
+					if(boxStorage[i].userentered){
+						console.log(boxStorage[i]);
+						str += "" + boxStorage[i].x + boxStorage[i].y + boxStorage[i].val;
 					}
 				}
 				link.val(str);
